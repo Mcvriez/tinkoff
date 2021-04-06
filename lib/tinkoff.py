@@ -31,9 +31,10 @@ def get_operations(token):
                             'currency': x.currency,
                             'operation_type': x.operation_type}
                            for x in ops])
-    ops = ops.loc[(ops['operation_type'] == 'Dividend') | (ops['operation_type'] == 'Coupon') | (ops['operation_type'] == 'TaxDividend') | (ops['operation_type'] == 'TaxCoupon')]
-    ops['month'] = ops['date'].apply(lambda x: x.month)
-    ops['date'] = ops['date'].apply(lambda x: x.date())
+    ops_df = ops_df.loc[(ops_df['operation_type'] == 'Dividend') | (ops_df['operation_type'] == 'Coupon') |
+                        (ops_df['operation_type'] == 'TaxDividend') | (ops_df['operation_type'] == 'TaxCoupon')]
+    ops_df['month'] = ops_df['date'].apply(lambda x: x.month)
+    ops_df['date'] = ops_df['date'].apply(lambda x: x.date())
     return ops_df
 
 
