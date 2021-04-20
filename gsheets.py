@@ -5,7 +5,7 @@ import gspread
 from gspread_dataframe import set_with_dataframe
 
 
-token = yaml.load(open('config/t-config.yaml'), Loader=yaml.BaseLoader)['token']
+token = yaml.load(open('config/t-config.yml'), Loader=yaml.BaseLoader)['token']
 
 
 def main():
