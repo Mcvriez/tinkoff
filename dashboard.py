@@ -1,12 +1,15 @@
+#!/Users/vldq/PycharmProjects/tinkoff/venv/bin/python3
+
 import yaml
 from datetime import date, datetime, timedelta
 from openapi_client import openapi
 from pytz import timezone
-from pprint import pprint as pp
 from investpy import get_etf_recent_data, get_currency_cross_recent_data, get_bond_information, get_stocks_overview
+from os import getcwd
 
-cfg = yaml.load(open('config/t-config.yml'), Loader=yaml.BaseLoader)
-figimap = yaml.load(open('config/figimap.yml'), Loader=yaml.BaseLoader)
+
+cfg = yaml.load(open(f'/Users/vldq/PycharmProjects/tinkoff/config/t-config.yml'), Loader=yaml.BaseLoader)
+figimap = yaml.load(open(f'/Users/vldq/PycharmProjects/tinkoff/config/figimap.yml'), Loader=yaml.BaseLoader)
 TOKEN = cfg['token']
 etfdict = cfg['etf_list']
 
@@ -32,11 +35,11 @@ def operations(client):
     ops_map = {k: round(v) for k, v in ops_map.items()}
     coup = ops_map["Coupon"] - ops_map["TaxCoupon"]
     div = ops_map["Dividend"] - ops_map["TaxDividend"]
-    print(f'y2d rev:\t${coup + div}\t\tc:${coup}\t|\td:${div}')
+    print(f'y2d rev:\t${coup + div}\t\tc:{int((coup / (div + coup)) * 100)}%')
     return operations, ops_map
 
 
-def main():
+def stats():
     total_usd = floating = etftotal = cash = 0
 
     # investing
@@ -49,7 +52,9 @@ def main():
     client = openapi.api_client(TOKEN)
     positions = client.portfolio.portfolio_get().payload.positions
     on_hand = client.portfolio.portfolio_currencies_get().payload.currencies
-    on_hand = '\t'.join([x.currency[:1] + str(round(x.balance)) for x in on_hand])
+
+    on_hand_str = '\t\t'.join([x.currency[:3] + str(round(x.balance)) for x in on_hand[::-1] if x.balance > 20])
+    on_hand_str = on_hand_str.replace('USD', '$').replace('RUB', '₽').replace('EUR', '€')
 
     for pos in positions:
         exp = pos.balance * pos.average_position_price.value + pos.expected_yield.value
@@ -63,36 +68,17 @@ def main():
         total_usd += exp
         floating += fl
         if pos.instrument_type == 'Currency':
-            cash += exp + fl
+            cash += int(exp)
+    cash += int([x.balance / rub_usd_ratio for x in on_hand if x.currency == 'RUB'].pop())
 
     for etf, price in etf_prices.items():
         total_usd += int(etfdict[etf]) * price
         etftotal += int(etfdict[etf]) * price
 
-    usd_stocks = [x for x in positions
-                  if x.average_position_price.currency == 'USD'
-                  and x.instrument_type == 'Stock']
-
-    rub_stocks = [x for x in positions
-                  if x.average_position_price.currency == 'RUB'
-                  and x.instrument_type == 'Stock']
-
-    eur_stocks = [x for x in positions
-                  if x.average_position_price.currency == 'EUR'
-                  and x.instrument_type == 'Stock']
-
-    usd_bonds = [x for x in positions
-                  if x.average_position_price.currency == 'USD'
-                  and x.instrument_type == 'Bond']
-
-    rub_bonds = [x for x in positions
-                  if x.average_position_price.currency == 'RUB'
-                  and x.instrument_type == 'Bond']
-
     year_ops, year_stats = operations(client)
     print(f'total:\t\t${round(total_usd / 1000, 1)}k\t\t€{round(total_usd / 1000 * eur_usd_ratio, 1)}k\n'
           f'floating:\t${round(floating / 1000, 1)}k\n'
-          f'on hand:\t${round(cash)}\t\t{on_hand}\n')
+          f'on hand:\t{on_hand_str}\n')  # ${cash}
     print('-' * 18)
     print(f'10 year us:\t{round(us_10_year, 2)}%\n'
           f'10 year ru:\t{ru_10_year}%\n')
@@ -101,18 +87,11 @@ def main():
           f'ratio:\t\t{round(1 / eur_usd_ratio, 3)}\n')
     print('-' * 18)
     for o in year_ops:
-        if o.date.date() >= (datetime.now() - timedelta(days=7)).date() and o.operation_type in \
-                ['Coupon', 'Dividend', 'Repayment']:
-            print(o.currency, o.payment, o.date.date().strftime('%d %b'),
-            print(o.currency, o.payment, o.date.date().strftime('%d %b'),
-                  o.operation_type[:3], figimap.get(o.figi), sep='\t'))
+        if o.date.date() >= (datetime.now() - timedelta(days=7)).date() \
+                and o.operation_type in ['Coupon', 'Dividend', 'Repayment', 'PartRepayment']:
+            print(o.currency, round(o.payment),  # o.date.date().strftime('%d'),
+                  o.operation_type[:3], figimap.get(o.figi), sep='\t')
 
 
-main()
-
-# client = openapi.api_client(TOKEN)
-# tinkoff_stock_list = set([x.ticker for x in client.market.market_stocks_get().payload.instruments])
-#
-# pp(client.market.market_stocks_get().payload.instruments)
-
-#print(get_stocks_overview('russia', n_results=1000).to_string())
+if __name__ == '__main__':
+    stats()

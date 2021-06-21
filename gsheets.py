@@ -8,7 +8,7 @@ from gspread_dataframe import set_with_dataframe
 token = yaml.load(open('config/t-config.yml'), Loader=yaml.BaseLoader)['token']
 
 
-def main():
+def sheets():
     gc = gspread.service_account(filename='config/g-key.json')
     stocks_sheet = gc.open("tinvest").sheet1
     rustock_sheet = gc.open("tinvest").worksheets()[1]
@@ -42,10 +42,6 @@ def main():
     set_with_dataframe(ops_sheet, ops)
 
 
-
-
-main()
-# print(get_positions().to_string())
-
-
+if __name__ == '__main__':
+    sheets()
 
